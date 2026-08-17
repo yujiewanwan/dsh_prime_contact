@@ -6,12 +6,15 @@ export const inject = ['webServer', 'credentials']
 const PREFIX = '/plugins/prime-contact/api'
 const USERNAME_REF = 'PRIME_CONTACT_USERNAME'
 const PASSWORD_REF = 'PRIME_CONTACT_PASSWORD'
+const BASE_URL_REF = 'PRIME_CONTACT_BASE_URL'
 const allowed = [/^\/wechat-conversations\/accounts(?:\/\d+\/conversations(?:\/\d+\/messages)?)?$/, /^\/wechat-touch\/daily-todo(?:\/summary)?$/]
 function send(res: ServerResponse, status: number, data: unknown): void { res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(data)) }
 export function apply(ctx: PluginContext): void {
-  const base = (process.env.PRIME_CONTACT_BASE_URL ?? 'http://127.0.0.1:9001').replace(/\/$/, '')
+  let base = (process.env.PRIME_CONTACT_BASE_URL ?? 'http://127.0.0.1:9001').replace(/\/$/, '')
   let token = process.env.PRIME_CONTACT_TOKEN
   const resolveToken = async (): Promise<string | undefined> => {
+    const configuredBase = await ctx.credentials.resolve(BASE_URL_REF)
+    if (configuredBase) base = configuredBase.value.replace(/\/$/, '')
     if (token) return token
     const [username, password] = await Promise.all([
       ctx.credentials.resolve(USERNAME_REF),

@@ -16,6 +16,7 @@ export default defineConfig([
     outDir: 'lib',
     format: 'cjs',
     platform: 'browser',
+    deps: { neverBundle: ['react'] },
     target: 'es2022',
     clean: false,
     outputOptions: {
