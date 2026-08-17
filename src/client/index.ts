@@ -14,6 +14,7 @@ function installSettings(ctx: any): void {
   const inputStyle = { display: 'block', boxSizing: 'border-box', width: '100%', marginTop: '6px', padding: '8px 10px', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: '6px', background: 'var(--dsw-alias-bg-layer-2)', color: 'var(--dsw-alias-label-primary)', font: 'inherit' }
   const labelStyle = { display: 'block', marginTop: '14px', color: 'var(--dsw-alias-label-secondary)', fontSize: '13px' }
   const SettingsCard = () => {
+    const [open, setOpen] = React.useState(false)
     const [baseUrl, setBaseUrl] = React.useState('http://127.0.0.1:9001')
     const [username, setUsername] = React.useState('')
     const [password, setPassword] = React.useState('')
@@ -38,7 +39,11 @@ function installSettings(ctx: any): void {
       }
     }
     return React.createElement('li', { style: { listStyle: 'none', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: '8px' } },
-      React.createElement('form', { onSubmit: save, style: { maxWidth: '560px', padding: '20px 24px' } },
+      React.createElement('button', { type: 'button', onClick: () => setOpen(!open), 'aria-expanded': open, 'aria-label': `${open ? '收起' : '展开'}设置: Prime Contact`, style: { display: 'block', width: '100%', padding: '16px 20px', border: 0, background: 'transparent', color: 'inherit', font: 'inherit', textAlign: 'left', cursor: 'pointer' } },
+        React.createElement('b', null, 'Prime Contact'),
+        React.createElement('span', { style: { display: 'block', marginTop: '4px', color: 'var(--dsw-alias-label-secondary)', fontSize: '13px' } }, '微信沟通与触达跟进的数据源。'),
+      ),
+      open ? React.createElement('form', { onSubmit: save, style: { maxWidth: '560px', padding: '0 20px 20px' } },
         React.createElement('h3', { style: { margin: '0 0 4px' } }, 'Prime Contact'),
         React.createElement('p', { style: { margin: '0 0 4px', color: 'var(--dsw-alias-label-secondary)' } }, '用于微信沟通、今日触达跟进等 Prime Contact 数据。'),
         React.createElement('label', { style: labelStyle }, '服务地址', React.createElement('input', { style: inputStyle, value: baseUrl, onChange: (event: any) => setBaseUrl(event.target.value), placeholder: 'http://127.0.0.1:9001' })),
@@ -46,7 +51,7 @@ function installSettings(ctx: any): void {
         React.createElement('label', { style: labelStyle }, '密码', React.createElement('input', { style: inputStyle, type: 'password', value: password, onChange: (event: any) => setPassword(event.target.value), autoComplete: 'current-password' })),
         React.createElement('button', { type: 'submit', style: { marginTop: '18px', padding: '8px 14px', border: 0, borderRadius: '6px', background: 'var(--dsw-alias-interactive-bg-hover-solid)', color: 'var(--dsw-alias-label-primary)', font: 'inherit', cursor: 'pointer' } }, '保存配置'),
         status ? React.createElement('p', { style: { marginTop: '12px', color: 'var(--dsw-alias-label-secondary)', fontSize: '13px' } }, status) : null,
-      ),
+      ) : null,
     )
   }
   ctx.slots.inject('settings.plugin.item', () => ctx.slots.register(
