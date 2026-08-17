@@ -30,7 +30,7 @@ function dashboardPath(pathname: string): string | undefined {
 export function apply(ctx: PluginContext): void {
   const baseUrl = (process.env.PRIME_SALE_REACH_BASE_URL ?? DEFAULT_BASE_URL).replace(/\/$/, '')
   const token = process.env.PRIME_SALE_REACH_TOKEN
-  ctx.effect(ctx.webServer.register({
+  ctx.effect(() => ctx.webServer.register({
     kind: 'prefix',
     path: API_PREFIX,
     async handler(req, res): Promise<void> {
