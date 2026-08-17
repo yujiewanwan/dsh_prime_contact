@@ -1,20 +1,24 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 interface WebServer { register(route: { kind: 'prefix'; path: string; handler: (req: IncomingMessage, res: ServerResponse) => Promise<void> }): () => void }
-interface PluginContext { webServer: WebServer; effect(setup: () => () => void, name: string): void }
-export const inject = ['webServer']
+interface PluginContext { webServer: WebServer; credentials: { resolve(ref: string): Promise<{ value: string } | undefined> }; effect(setup: () => () => void, name: string): void }
+export const inject = ['webServer', 'credentials']
 const PREFIX = '/plugins/prime-contact/api'
+const USERNAME_REF = 'PRIME_CONTACT_USERNAME'
+const PASSWORD_REF = 'PRIME_CONTACT_PASSWORD'
 const allowed = [/^\/wechat-conversations\/accounts(?:\/\d+\/conversations(?:\/\d+\/messages)?)?$/, /^\/wechat-touch\/daily-todo(?:\/summary)?$/]
 function send(res: ServerResponse, status: number, data: unknown): void { res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(data)) }
 export function apply(ctx: PluginContext): void {
   const base = (process.env.PRIME_CONTACT_BASE_URL ?? 'http://127.0.0.1:9001').replace(/\/$/, '')
   let token = process.env.PRIME_CONTACT_TOKEN
-  const username = process.env.PRIME_CONTACT_USERNAME
-  const password = process.env.PRIME_CONTACT_PASSWORD
   const resolveToken = async (): Promise<string | undefined> => {
     if (token) return token
+    const [username, password] = await Promise.all([
+      ctx.credentials.resolve(USERNAME_REF),
+      ctx.credentials.resolve(PASSWORD_REF),
+    ])
     if (!username || !password) return undefined
-    const response = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username, password }), signal: AbortSignal.timeout(10_000) })
+    const response = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: username.value, password: password.value }), signal: AbortSignal.timeout(10_000) })
     if (!response.ok) return undefined
     const body = await response.json() as { data?: { token?: string } }
     token = body.data?.token
