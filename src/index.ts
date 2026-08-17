@@ -19,6 +19,7 @@ export function apply(ctx: PluginContext): void {
     ])
     if (!username || !password) return undefined
     const base = (configuredBase?.value || DEFAULT_BASE_URL).replace(/\/$/, '')
+    let apiBase = base
     const loginUrl = new URL('/api/auth/login', base)
     const request = { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: username.value, password: password.value }), signal: AbortSignal.timeout(10_000) } as const
     let response = await fetch(loginUrl, { ...request, redirect: 'manual' })
@@ -26,10 +27,11 @@ export function apply(ctx: PluginContext): void {
       const redirectedUrl = new URL(response.headers.get('location') ?? '', loginUrl)
       if (redirectedUrl.hostname !== loginUrl.hostname || redirectedUrl.protocol !== 'https:') return undefined
       response = await fetch(redirectedUrl, request)
+      apiBase = redirectedUrl.origin
     }
     if (!response.ok) return undefined
     const body = await response.json() as { data?: { token?: string } }
-    return body.data?.token ? { base, token: body.data.token } : undefined
+    return body.data?.token ? { base: apiBase, token: body.data.token } : undefined
   }
   ctx.effect(() => ctx.webServer.register({ kind: 'prefix', path: PREFIX, async handler(req, res) {
     const url = new URL(req.url ?? '/', 'http://dsh.local'); const path = url.pathname.slice(PREFIX.length)
