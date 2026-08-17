@@ -37,17 +37,20 @@ function installSettings(ctx: any): void {
         setStatus('保存失败，请确认 DSH 已连接并重试。')
       }
     }
-    return React.createElement('form', { onSubmit: save, style: { maxWidth: '560px', padding: '20px 24px' } },
-      React.createElement('p', { style: { margin: '0 0 4px', color: 'var(--dsw-alias-label-secondary)' } }, '用于微信沟通、今日触达跟进等 Prime Contact 数据。'),
-      React.createElement('label', { style: labelStyle }, '服务地址', React.createElement('input', { style: inputStyle, value: baseUrl, onChange: (event: any) => setBaseUrl(event.target.value), placeholder: 'http://127.0.0.1:9001' })),
-      React.createElement('label', { style: labelStyle }, '用户名', React.createElement('input', { style: inputStyle, value: username, onChange: (event: any) => setUsername(event.target.value), autoComplete: 'username' })),
-      React.createElement('label', { style: labelStyle }, '密码', React.createElement('input', { style: inputStyle, type: 'password', value: password, onChange: (event: any) => setPassword(event.target.value), autoComplete: 'current-password' })),
-      React.createElement('button', { type: 'submit', style: { marginTop: '18px', padding: '8px 14px', border: 0, borderRadius: '6px', background: 'var(--dsw-alias-interactive-bg-hover-solid)', color: 'var(--dsw-alias-label-primary)', font: 'inherit', cursor: 'pointer' } }, '保存配置'),
-      status ? React.createElement('p', { style: { marginTop: '12px', color: 'var(--dsw-alias-label-secondary)', fontSize: '13px' } }, status) : null,
+    return React.createElement('li', { style: { listStyle: 'none', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: '8px' } },
+      React.createElement('form', { onSubmit: save, style: { maxWidth: '560px', padding: '20px 24px' } },
+        React.createElement('h3', { style: { margin: '0 0 4px' } }, 'Prime Contact'),
+        React.createElement('p', { style: { margin: '0 0 4px', color: 'var(--dsw-alias-label-secondary)' } }, '用于微信沟通、今日触达跟进等 Prime Contact 数据。'),
+        React.createElement('label', { style: labelStyle }, '服务地址', React.createElement('input', { style: inputStyle, value: baseUrl, onChange: (event: any) => setBaseUrl(event.target.value), placeholder: 'http://127.0.0.1:9001' })),
+        React.createElement('label', { style: labelStyle }, '用户名', React.createElement('input', { style: inputStyle, value: username, onChange: (event: any) => setUsername(event.target.value), autoComplete: 'username' })),
+        React.createElement('label', { style: labelStyle }, '密码', React.createElement('input', { style: inputStyle, type: 'password', value: password, onChange: (event: any) => setPassword(event.target.value), autoComplete: 'current-password' })),
+        React.createElement('button', { type: 'submit', style: { marginTop: '18px', padding: '8px 14px', border: 0, borderRadius: '6px', background: 'var(--dsw-alias-interactive-bg-hover-solid)', color: 'var(--dsw-alias-label-primary)', font: 'inherit', cursor: 'pointer' } }, '保存配置'),
+        status ? React.createElement('p', { style: { marginTop: '12px', color: 'var(--dsw-alias-label-secondary)', fontSize: '13px' } }, status) : null,
+      ),
     )
   }
-  ctx.slots.inject('settings.section', () => ctx.slots.register(
-    { name: 'settings.section', id: 'prime-contact', order: 120, label: 'Prime Contact', alwaysOpen: true },
+  ctx.slots.inject('settings.plugin.item', () => ctx.slots.register(
+    { name: 'settings.plugin.item', id: 'prime-contact', order: 30 },
     SettingsCard,
   ))
 }
