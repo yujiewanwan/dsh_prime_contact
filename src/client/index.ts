@@ -1,5 +1,6 @@
 const API = '/plugins/prime-contact/api'
 const ACTIVE = 'data-prime-contact-active'
+export const inject = ['slots', 'connection']
 type ReactRuntime = {
   createElement: (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]) => unknown
   useState: <T>(initial: T) => [T, (value: T) => void]
