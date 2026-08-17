@@ -19,7 +19,14 @@ export function apply(ctx: PluginContext): void {
     ])
     if (!username || !password) return undefined
     const base = (configuredBase?.value || DEFAULT_BASE_URL).replace(/\/$/, '')
-    const response = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: username.value, password: password.value }), signal: AbortSignal.timeout(10_000) })
+    const loginUrl = new URL('/api/auth/login', base)
+    const request = { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: username.value, password: password.value }), signal: AbortSignal.timeout(10_000) } as const
+    let response = await fetch(loginUrl, { ...request, redirect: 'manual' })
+    if ([301, 302, 307, 308].includes(response.status)) {
+      const redirectedUrl = new URL(response.headers.get('location') ?? '', loginUrl)
+      if (redirectedUrl.hostname !== loginUrl.hostname || redirectedUrl.protocol !== 'https:') return undefined
+      response = await fetch(redirectedUrl, request)
+    }
     if (!response.ok) return undefined
     const body = await response.json() as { data?: { token?: string } }
     return body.data?.token ? { base, token: body.data.token } : undefined
