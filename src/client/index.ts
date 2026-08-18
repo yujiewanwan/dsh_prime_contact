@@ -139,7 +139,12 @@ export function apply(ctx: any): void {
       .sort((left, right) => (right.lastMessageAt ?? 0) - (left.lastMessageAt ?? 0))
     body.innerHTML = `<div class="pc-toolbar"><nav class="pc-subtabs"><button data-conversation-type="DIRECT" ${conversationType === 'DIRECT' ? 'data-active' : ''}>单聊</button><button data-conversation-type="GROUP" ${conversationType === 'GROUP' ? 'data-active' : ''}>群聊</button></nav><input data-conversation-search placeholder="搜索会话或最新消息" value="${html(conversationSearch)}" style="min-width:180px;flex:1;padding:7px 9px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:inherit;font:inherit"><span class="pc-note">${conversations.length} 个会话</span></div><div class="pc-split"><div class="pc-list">${conversations.map(item => `<button class="pc-row" data-id="${item.id}"><span style="display:flex;gap:8px;align-items:center"><b>${html(item.displayName)}</b><time style="margin-left:auto;white-space:nowrap;color:var(--dsw-alias-label-tertiary);font-size:12px">${formatMessageTime(item.lastMessageAt)}</time></span><small>${html(item.lastMessageSummary)}</small></button>`).join('') || '<p class="pc-empty">暂无匹配会话。</p>'}</div><div class="pc-detail">选择一个会话查看聊天记录。</div></div>`
     body.querySelectorAll<HTMLButtonElement>('[data-conversation-type]').forEach(button => { button.onclick = () => { conversationType = button.dataset.conversationType!; renderConversations() } })
-    body.querySelector<HTMLInputElement>('[data-conversation-search]')?.addEventListener('input', event => { conversationSearch = (event.target as HTMLInputElement).value; renderConversations() })
+    body.querySelector<HTMLInputElement>('[data-conversation-search]')?.addEventListener('keydown', event => {
+      if (event.key !== 'Enter') return
+      event.preventDefault()
+      conversationSearch = (event.target as HTMLInputElement).value
+      renderConversations()
+    })
     body.querySelectorAll<HTMLButtonElement>('[data-id]').forEach(button => { button.onclick = () => { void showMessages(button.dataset.id!) } })
   }
 
