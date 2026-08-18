@@ -78,7 +78,7 @@ function applyLegacy(ctx: any): void { if (document.querySelector('[data-prime-c
   const place = () => { const sidebar = document.querySelector<HTMLElement>('[data-pane="sidebar"], [class*="sidebarCol"]'); const center = document.querySelector<HTMLElement>('[data-pane="conversation"], [class*="centerCol"]'); if (sidebar && !entry.isConnected) sidebar.querySelector('button[class*="newSession"]')?.insertAdjacentElement('afterend', entry); if (center && !view.isConnected) center.append(view) }; new MutationObserver(place).observe(document.body, { childList: true, subtree: true }); place(); entry.onclick = () => { const open = !view.hasAttribute('data-open'); view.toggleAttribute('data-open', open); entry.toggleAttribute('data-active', open); document.documentElement.toggleAttribute(ACTIVE, open); if (open) void load() }
 }
 
-type Conversation = { id: number; type: string; displayName: string; lastMessageSummary?: string }
+type Conversation = { id: number; type: string; displayName: string; lastMessageAt?: number | null; lastMessageSummary?: string }
 type TouchItem = { id: number; batchDate?: string; actualCompanyName?: string; sourceName?: string; contactValue?: string; wechatId?: string; wechatNickname?: string; wechatExists?: number; userName?: string; username?: string }
 
 export function apply(ctx: any): void {
@@ -97,6 +97,8 @@ export function apply(ctx: any): void {
   let tab = 'dashboard'
   let accountId: number | undefined
   let conversationType = 'DIRECT'
+  let conversationSearch = ''
+  let allConversations: Conversation[] = []
 
   const render = () => {
     view.innerHTML = `<header class="pc-head"><strong>微信沟通</strong><nav class="pc-tabs">${[['dashboard', '看板'], ['followup', '今日触达跟进'], ['maintenance', '今日客户维护'], ['chat', '聊天管理']].map(([id, name]) => `<button data-tab="${id}" ${tab === id ? 'data-active' : ''}>${name}</button>`).join('')}</nav></header><main class="pc-body"></main>`
@@ -115,15 +117,37 @@ export function apply(ctx: any): void {
     }
   }
 
+  const formatMessageTime = (value?: number | null): string => {
+    if (!value) return '暂无消息'
+    const timestamp = value < 1_000_000_000_000 ? value * 1_000 : value
+    return new Intl.DateTimeFormat('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date(timestamp))
+  }
+
+  const renderConversations = () => {
+    const body = view.querySelector<HTMLElement>('.pc-body')!
+    const search = conversationSearch.trim().toLocaleLowerCase()
+    const conversations = allConversations
+      .filter(item => conversationType === 'GROUP' ? item.type === 'GROUP' : item.type !== 'GROUP')
+      .filter(item => !search || `${item.displayName} ${item.lastMessageSummary ?? ''}`.toLocaleLowerCase().includes(search))
+      .sort((left, right) => (right.lastMessageAt ?? 0) - (left.lastMessageAt ?? 0))
+    body.innerHTML = `<div class="pc-toolbar"><nav class="pc-subtabs"><button data-conversation-type="DIRECT" ${conversationType === 'DIRECT' ? 'data-active' : ''}>单聊</button><button data-conversation-type="GROUP" ${conversationType === 'GROUP' ? 'data-active' : ''}>群聊</button></nav><input data-conversation-search placeholder="搜索会话或最新消息" value="${html(conversationSearch)}" style="min-width:180px;flex:1;padding:7px 9px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:inherit;font:inherit"><span class="pc-note">${conversations.length} 个会话</span></div><div class="pc-split"><div class="pc-list">${conversations.map(item => `<button class="pc-row" data-id="${item.id}"><span style="display:flex;gap:8px;align-items:center"><b>${html(item.displayName)}</b><time style="margin-left:auto;white-space:nowrap;color:var(--dsw-alias-label-tertiary);font-size:12px">${formatMessageTime(item.lastMessageAt)}</time></span><small>${html(item.lastMessageSummary)}</small></button>`).join('') || '<p class="pc-empty">暂无匹配会话。</p>'}</div><div class="pc-detail">选择一个会话查看聊天记录。</div></div>`
+    body.querySelectorAll<HTMLButtonElement>('[data-conversation-type]').forEach(button => { button.onclick = () => { conversationType = button.dataset.conversationType!; renderConversations() } })
+    body.querySelector<HTMLInputElement>('[data-conversation-search]')?.addEventListener('input', event => { conversationSearch = (event.target as HTMLInputElement).value; renderConversations() })
+    body.querySelectorAll<HTMLButtonElement>('[data-id]').forEach(button => { button.onclick = () => { void showMessages(button.dataset.id!) } })
+  }
+
   const showConversations = async () => {
     if (!accountId) accountId = (await get<Array<{ id: number }>>('/wechat-conversations/accounts'))[0]?.id
     if (!accountId) throw new Error('暂无可访问微信账号。')
     const overview = await get<{ conversations: Conversation[] }>(`/wechat-conversations/accounts/${accountId}/conversations`)
-    const conversations = overview.conversations.filter(item => conversationType === 'GROUP' ? item.type === 'GROUP' : item.type !== 'GROUP')
-    const body = view.querySelector<HTMLElement>('.pc-body')!
-    body.innerHTML = `<div class="pc-toolbar"><nav class="pc-subtabs"><button data-conversation-type="DIRECT" ${conversationType === 'DIRECT' ? 'data-active' : ''}>单聊</button><button data-conversation-type="GROUP" ${conversationType === 'GROUP' ? 'data-active' : ''}>群聊</button></nav><span class="pc-note">${conversations.length} 个会话</span></div><div class="pc-split"><div class="pc-list">${conversations.map(item => `<button class="pc-row" data-id="${item.id}"><b>${html(item.displayName)}</b><small>${html(item.lastMessageSummary)}</small></button>`).join('') || '<p class="pc-empty">暂无会话。</p>'}</div><div class="pc-detail">选择一个会话查看聊天记录。</div></div>`
-    body.querySelectorAll<HTMLButtonElement>('[data-conversation-type]').forEach(button => { button.onclick = () => { conversationType = button.dataset.conversationType!; void showConversations() } })
-    body.querySelectorAll<HTMLButtonElement>('[data-id]').forEach(button => { button.onclick = () => { void showMessages(button.dataset.id!) } })
+    allConversations = overview.conversations
+    renderConversations()
   }
 
   const groupName = (item: TouchItem): string => [item.actualCompanyName || item.sourceName || '未命名公司', item.wechatNickname, item.userName || item.username, '美加线Prime'].filter(Boolean).join('#')
