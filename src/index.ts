@@ -8,8 +8,30 @@ const USERNAME_REF = 'PRIME_CONTACT_USERNAME'
 const PASSWORD_REF = 'PRIME_CONTACT_PASSWORD'
 const BASE_URL_REF = 'PRIME_CONTACT_BASE_URL'
 const DEFAULT_BASE_URL = 'http://127.0.0.1:9001'
-const allowed = [/^\/wechat-conversations\/accounts(?:\/\d+\/conversations(?:\/\d+\/messages)?)?$/, /^\/wechat-touch\/daily-todo(?:\/summary)?$/]
+const readablePaths = [
+  /^\/wechat-conversations\/accounts(?:\/\d+\/conversations(?:\/\d+\/messages)?)?$/,
+  /^\/wechat-touch\/items$/,
+]
+const itemUpdatePath = /^\/wechat-touch\/items\/\d+$/
 function send(res: ServerResponse, status: number, data: unknown): void { res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(data)) }
+
+async function readItemUpdate(req: IncomingMessage): Promise<string> {
+  const chunks: Buffer[] = []
+  let length = 0
+  for await (const chunk of req) {
+    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+    length += bytes.length
+    if (length > 8_192) throw new Error('Request body is too large.')
+    chunks.push(bytes)
+  }
+  const payload = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>
+  const update: Record<string, string | number | null> = {}
+  if (payload.wechatExists === 0 || payload.wechatExists === 1 || payload.wechatExists === null) update.wechatExists = payload.wechatExists
+  if (typeof payload.wechatNickname === 'string') update.wechatNickname = payload.wechatNickname.slice(0, 100)
+  if (payload.wechatNickname === null) update.wechatNickname = null
+  if (Object.keys(update).length === 0) throw new Error('No supported update fields.')
+  return JSON.stringify(update)
+}
 export function apply(ctx: PluginContext): void {
   const resolveConnection = async (): Promise<{ base: string; token: string } | undefined> => {
     const [configuredBase, username, password] = await Promise.all([
@@ -34,8 +56,34 @@ export function apply(ctx: PluginContext): void {
     return body.data?.token ? { base: apiBase, token: body.data.token } : undefined
   }
   ctx.effect(() => ctx.webServer.register({ kind: 'prefix', path: PREFIX, async handler(req, res) {
-    const url = new URL(req.url ?? '/', 'http://dsh.local'); const path = url.pathname.slice(PREFIX.length)
-    if (req.method !== 'GET' || !allowed.some(rule => rule.test(path))) return send(res, 404, { error: 'Not found' })
-    try { const connection = await resolveConnection(); if (!connection) return send(res, 503, { error: 'Prime Contact is not configured.' }); const response = await fetch(`${connection.base}/api${path}${url.search}`, { headers: { authorization: `Bearer ${connection.token}` }, signal: AbortSignal.timeout(10_000) }); if (!response.ok) return send(res, response.status < 500 ? response.status : 502, { error: 'Prime Contact request failed.' }); send(res, 200, await response.json()) } catch { send(res, 502, { error: 'Prime Contact is unavailable.' }) }
+    const url = new URL(req.url ?? '/', 'http://dsh.local')
+    const path = url.pathname.slice(PREFIX.length)
+    const isRead = req.method === 'GET' && readablePaths.some(rule => rule.test(path))
+    const isUpdate = req.method === 'PUT' && itemUpdatePath.test(path)
+    if (!isRead && !isUpdate) return send(res, 404, { error: 'Not found' })
+
+    let requestBody: string | undefined
+    if (isUpdate) {
+      try {
+        requestBody = await readItemUpdate(req)
+      } catch {
+        return send(res, 400, { error: 'Invalid item update.' })
+      }
+    }
+
+    try {
+      const connection = await resolveConnection()
+      if (!connection) return send(res, 503, { error: 'Prime Contact is not configured.' })
+      const response = await fetch(`${connection.base}/api${path}${url.search}`, {
+        method: req.method,
+        headers: { authorization: `Bearer ${connection.token}`, ...(isUpdate ? { 'content-type': 'application/json' } : {}) },
+        body: requestBody,
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (!response.ok) return send(res, response.status < 500 ? response.status : 502, { error: 'Prime Contact request failed.' })
+      send(res, 200, await response.json())
+    } catch {
+      send(res, 502, { error: 'Prime Contact is unavailable.' })
+    }
   } }), 'prime-contact API proxy')
 }
